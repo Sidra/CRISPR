@@ -1,0 +1,895 @@
+<!DOCTYPE html>
+
+<html lang="en">
+
+<head>
+
+    <meta charset="UTF-8">
+
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>CRISPR-Cas9 Target Acquisition Visualization</title>
+
+    <style>
+
+        /* --- Global Setup --- */
+
+        body {
+
+            background-color: #050a15;
+
+            display: flex;
+
+            justify-content: center;
+
+            align-items: center;
+
+            height: 100vh;
+
+            margin: 0;
+
+            overflow: hidden;
+
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+
+        }
+
+
+
+        .scene {
+
+            position: relative;
+
+            width: 1000px;
+
+            height: 700px;
+
+            /* Setup 3D perspective */
+
+            perspective: 1200px;
+
+            background: radial-gradient(circle at 30% 30%, rgba(20, 30, 60, 0.9), rgba(5, 10, 20, 1));
+
+            border-radius: 5px;
+
+            overflow: hidden;
+
+            box-shadow: 0 0 150px rgba(0, 0, 30, 0.5);
+
+        }
+
+
+
+        /* --- Environment & Atmosphere --- */
+
+        /* Lighting effect similar to the reference image */
+
+        .light-source {
+
+            position: absolute;
+
+            top: -200px;
+
+            left: 10%;
+
+            width: 600px;
+
+            height: 600px;
+
+            background: radial-gradient(circle, rgba(150, 180, 255, 0.2) 0%, rgba(0, 0, 0, 0) 60%);
+
+            z-index: 0;
+
+        }
+
+
+
+        /* Tube/Vignette effect */
+
+        .vignette {
+
+            position: absolute;
+
+            top: 0; left: 0; right: 0; bottom: 0;
+
+            background: radial-gradient(circle at center, rgba(0,0,0,0.1) 40%, rgba(0,0,0,0.9) 100%);
+
+            pointer-events: none;
+
+            z-index: 20;
+
+        }
+
+
+
+        .environment-container {
+
+            position: absolute;
+
+            width: 100%;
+
+            height: 100%;
+
+            transform-style: preserve-3d;
+
+            /* Initial camera angle matching the reference */
+
+            transform: rotateX(15deg) rotateY(-10deg);
+
+            animation: camera-sway 30s ease-in-out infinite alternate;
+
+        }
+
+
+
+        @keyframes camera-sway {
+
+            from { transform: rotateX(15deg) rotateY(-10deg); }
+
+            to { transform: rotateX(10deg) rotateY(10deg); }
+
+        }
+
+
+
+        /* Chromatin particles (proteins/histones) */
+
+        .particle {
+
+            position: absolute;
+
+            border-radius: 50%;
+
+            opacity: 0.85;
+
+            /* Ambient dynamic movement */
+
+            animation: jiggle 4s infinite alternate ease-in-out;
+
+        }
+
+
+
+        @keyframes jiggle {
+
+            from { transform: translate3d(var(--tx), var(--ty), var(--tz)); }
+
+            to { transform: translate3d(calc(var(--tx) + 5px), calc(var(--ty) - 3px), calc(var(--tz) + 2px)); }
+
+        }
+
+
+
+        /* --- DNA Structure Visualization --- */
+
+        .dna-container {
+
+            position: absolute;
+
+            top: 50%;
+
+            left: 50%;
+
+            /* Centering and slightly tilting the DNA */
+
+            transform: translate(-50%, -50%) rotateZ(5deg);
+
+            width: 1400px;
+
+            height: 80px;
+
+            z-index: 5;
+
+        }
+
+
+
+        /* Stylized base pairs creating the helix texture */
+
+        .base-pair {
+
+            position: absolute;
+
+            width: 3px;
+
+            height: 50px;
+
+            background: linear-gradient(to bottom, rgba(220, 220, 220, 0.8), rgba(120, 120, 120, 0.8));
+
+            left: var(--bp-x);
+
+            top: 50%;
+
+            /* Rotation based on position to simulate the helix twist */
+
+            transform: translateY(-50%) rotateZ(var(--bp-rot));
+
+            transition: opacity 0.5s;
+
+        }
+
+
+
+        /* --- Target Acquisition Zone (Unwinding & R-loop) --- */
+
+        .target-site {
+
+            position: absolute;
+
+            left: 600px; /* Location where acquisition occurs */
+
+            top: 50%;
+
+            transform: translateY(-50%);
+
+            width: 150px;
+
+            height: 100px;
+
+        }
+
+
+
+        .unwound-strand {
+
+            position: absolute;
+
+            width: 100%;
+
+            height: 5px;
+
+            background-color: rgba(200, 200, 200, 0.8);
+
+            border-radius: 3px;
+
+            top: 50%;
+
+            transition: transform 1.5s cubic-bezier(0.68, -0.55, 0.265, 1.55); /* Elastic transition */
+
+        }
+
+
+
+        /* Animations triggered when the 'active' class is added by JS */
+
+        .active .unwound-strand-1 {
+
+            /* Displaced strand moves up and away */
+
+            transform: translateY(-40px) rotateX(20deg) scale(1.05);
+
+        }
+
+
+
+        .active .unwound-strand-2 {
+
+            /* Target strand moves down slightly */
+
+            transform: translateY(20px);
+
+        }
+
+
+
+        /* R-loop: Guide RNA binding visualization */
+
+        .r-loop-grna {
+
+            position: absolute;
+
+            top: 50%;
+
+            left: 0;
+
+            width: 0; /* Starts at width 0 */
+
+            height: 5px;
+
+            /* Colors matching the gRNA in the reference image (Blue/Cyan/Orange segments) */
+
+            background: linear-gradient(90deg, #3498db 0%, #3498db 40%, #1abc9c 40%, #1abc9c 70%, #f39c12 70%);
+
+            border-radius: 3px;
+
+            box-shadow: 0 0 10px rgba(52, 152, 219, 0.7);
+
+            transition: width 1s ease-in-out 0.5s, transform 1s ease-in-out 0.5s;
+
+            transform-origin: left center;
+
+        }
+
+
+
+        .active .r-loop-grna {
+
+            width: 100%;
+
+            /* Aligning with the target strand (strand 2) */
+
+            transform: translateY(20px);
+
+        }
+
+
+
+        /* --- CRISPR-Cas9 Complex --- */
+
+        .crispr-complex {
+
+            position: absolute;
+
+            top: 50%;
+
+            left: 0;
+
+            transform: translateY(-50%) rotateZ(5deg);
+
+            z-index: 10;
+
+            /* Animation Sequence: Scan -> Pause (Acquisition) -> Stay */
+
+            animation: scan-and-acquire 15s ease-in-out forwards;
+
+        }
+
+
+
+        /* Define the animation parameters */
+
+        :root {
+
+            --target-position: 600px;
+
+            --acquisition-start-time: 50%; /* 50% of 15s = 7.5s */
+
+        }
+
+
+
+        @keyframes scan-and-acquire {
+
+            0% { left: -200px; }
+
+            var(--acquisition-start-time) { left: var(--target-position); }
+
+            100% { left: var(--target-position); }
+
+        }
+
+
+
+        .cas9-body {
+
+            position: relative;
+
+            width: 100px;
+
+            height: 80px;
+
+            animation: complex-bobbing 2s infinite alternate ease-in-out;
+
+        }
+
+
+
+        @keyframes complex-bobbing {
+
+            from { transform: translateY(0px) rotate(0deg); }
+
+            to { transform: translateY(5px) rotate(2deg); }
+
+        }
+
+
+
+        .subunit {
+
+            position: absolute;
+
+            border-radius: 50%;
+
+            box-shadow: inset 0 0 8px rgba(0,0,0,0.4);
+
+        }
+
+
+
+        /* Colors based on the reference image */
+
+        .yellow { background: radial-gradient(circle at 30% 30%, #f4d03f, #f1c40f); }
+
+        .red { background: radial-gradient(circle at 30% 30%, #e74c3c, #c0392b); }
+
+        .green { background: radial-gradient(circle at 30% 30%, #2ecc71, #27ae60); }
+
+
+
+        /* --- UI Overlay Elements --- */
+
+        .ui-overlay {
+
+            position: absolute;
+
+            top: 0;
+
+            left: 0;
+
+            width: 100%;
+
+            height: 100%;
+
+            pointer-events: none;
+
+            color: rgba(255, 255, 255, 0.85);
+
+            z-index: 25;
+
+        }
+
+
+
+        .ui-section {
+
+            position: absolute;
+
+            padding: 25px;
+
+        }
+
+
+
+        .ui-top-left { top: 0; left: 0; }
+
+        .ui-top-right { top: 0; right: 0; text-align: right; }
+
+        .ui-bottom-left { bottom: 0; left: 0; }
+
+        .ui-bottom-right { bottom: 0; right: 0; text-align: right; }
+
+
+
+        .ui-icon {
+
+            width: 35px;
+
+            height: 35px;
+
+            border: 1px solid rgba(255, 255, 255, 0.6);
+
+            border-radius: 50%;
+
+            display: flex;
+
+            justify-content: center;
+
+            align-items: center;
+
+            margin-bottom: 12px;
+
+            background: rgba(0, 0, 0, 0.2);
+
+            font-size: 20px;
+
+        }
+
+
+
+        .ui-title { font-size: 18px; font-weight: bold; margin-bottom: 20px; }
+
+        .ui-text-small { font-size: 12px; opacity: 0.8; line-height: 1.5; }
+
+
+
+        .slider-container { display: flex; align-items: center; margin-top: 10px; }
+
+
+
+        .slider {
+
+            width: 110px;
+
+            height: 4px;
+
+            background: rgba(255, 255, 255, 0.3);
+
+            border-radius: 2px;
+
+            margin: 0 10px;
+
+            position: relative;
+
+        }
+
+
+
+        .slider-thumb {
+
+            width: 16px;
+
+            height: 16px;
+
+            background: white;
+
+            border-radius: 50%;
+
+            position: absolute;
+
+            top: -6px;
+
+        }
+
+        .slider-progress {
+
+            height: 100%;
+
+            background: #58D68D;
+
+            border-radius: 2px;
+
+        }
+
+
+
+    </style>
+
+</head>
+
+<body>
+
+    <div class="scene">
+
+        <div class="light-source"></div>
+
+        <div class="vignette"></div>
+
+
+
+        <div class="environment-container" id="environmentContainer">
+
+            <div class="dna-container" id="dnaContainer">
+
+                <div class="target-site" id="targetSite">
+
+                    <div class="unwound-strand unwound-strand-1"></div>
+
+                    <div class="unwound-strand unwound-strand-2"></div>
+
+                    <div class="r-loop-grna"></div>
+
+                </div>
+
+            </div>
+
+
+
+            <div class="crispr-complex" id="crisprComplex">
+
+                <div class="cas9-body" id="cas9Body">
+
+                    </div>
+
+            </div>
+
+        </div>
+
+
+
+        <div class="ui-overlay">
+
+            <div class="ui-section ui-top-left">
+
+                <div class="ui-title">✓ CRISPR-Cas9</div>
+
+                <div class="ui-icon">◎</div>
+
+                <div class="ui-icon">⚙︎</div>
+
+            </div>
+
+             <div class="ui-section ui-top-right">
+
+                <div class="ui-icon">☁︎</div>
+
+                <div class="ui-icon">⁂</div>
+
+            </div>
+
+            <div class="ui-section ui-bottom-left">
+
+                <div class="ui-text-small">PMSR4020599</div>
+
+                <div class="ui-text-small" style="margin-bottom: 15px;">DINR: +|- A</div>
+
+                 <div style="display: flex; align-items: center;">
+
+                    <div class="ui-icon" style="margin-right: 5px; font-size: 16px;">⤢</div>
+
+                    <div class="ui-icon" style="margin-right: 10px; font-size: 16px;">◉</div>
+
+                    <span>Zoom</span>
+
+                 </div>
+
+            </div>
+
+            <div class="ui-section ui-bottom-right">
+
+                <div class="ui-text-small">RNI3 Simulation</div>
+
+                <div class="slider-container">
+
+                    <span class="ui-text-small">SOOM</span>
+
+                    <div class="slider">
+
+                        <div class="slider-progress" style="width: 80%;"></div>
+
+                         <div class="slider-thumb" style="left: calc(80% - 8px);"></div>
+
+                    </div>
+
+                    <span class="ui-text-small">3096, 0026</span>
+
+                </div>
+
+                 <div class="slider-container">
+
+                     <div class="slider">
+
+                         <div class="slider-thumb" style="left: calc(10% - 8px);"></div>
+
+                    </div>
+
+                    <span>Highlight +</span>
+
+                </div>
+
+            </div>
+
+        </div>
+
+    </div>
+
+
+
+    <script>
+
+        const environmentContainer = document.getElementById('environmentContainer');
+
+        const dnaContainer = document.getElementById('dnaContainer');
+
+        const targetSite = document.getElementById('targetSite');
+
+        const cas9Body = document.getElementById('cas9Body');
+
+
+
+        // --- 1. Generate Chromatin Environment ---
+
+        const numParticles = 600;
+
+        for (let i = 0; i < numParticles; i++) {
+
+            const particle = document.createElement('div');
+
+            particle.classList.add('particle');
+
+
+
+            // Position in 3D space
+
+            const x = Math.random() * 2500 - 1250;
+
+            const y = Math.random() * 1200 - 600;
+
+            const z = Math.random() * 1000 - 500;
+
+
+
+            // Create a less dense channel near the center for the DNA
+
+            if (Math.abs(x) < 500 && Math.abs(y) < 200 && Math.abs(z) < 200) {
+
+                if (Math.random() > 0.1) continue; // Keep density low near DNA
+
+            }
+
+
+
+            const size = Math.random() * 20 + 8;
+
+            particle.style.width = `${size}px`;
+
+            particle.style.height = `${size}px`;
+
+
+
+            // Colors matching the reference image (Reds, Blues, Grays)
+
+            let color;
+
+            const randColor = Math.random();
+
+            if (randColor < 0.4) {
+
+                // Reddish
+
+                color = `rgb(${Math.random()*50+180}, ${Math.random()*50+60}, ${Math.random()*50+60})`;
+
+            } else if (randColor < 0.8) {
+
+                 // Bluish/Cyan
+
+                 color = `rgb(${Math.random()*50+60}, ${Math.random()*50+100}, ${Math.random()*50+180})`;
+
+            } else {
+
+                // Greyish
+
+                const grey = Math.random()*50+120;
+
+                color = `rgb(${grey}, ${grey}, ${grey})`;
+
+            }
+
+            particle.style.background = color;
+
+
+
+            // Set CSS variables for the jiggle animation
+
+            particle.style.setProperty('--tx', `${x}px`);
+
+            particle.style.setProperty('--ty', `${y}px`);
+
+            particle.style.setProperty('--tz', `${z}px`);
+
+
+
+            // Randomize animation start time
+
+            particle.style.animationDelay = `${Math.random() * -4}s`;
+
+
+
+            environmentContainer.appendChild(particle);
+
+        }
+
+
+
+        // --- 2. Generate DNA Structure ---
+
+        const numBasePairs = 200;
+
+        const helixLength = 1400;
+
+        const targetStart = 600; // Must match --target-position in CSS
+
+        const targetEnd = 750;
+
+
+
+         for (let i = 0; i < numBasePairs; i++) {
+
+            const xPos = (i / numBasePairs) * helixLength;
+
+            const basePair = document.createElement('div');
+
+            basePair.classList.add('base-pair');
+
+            basePair.style.setProperty('--bp-x', `${xPos}px`);
+
+
+
+            // Rotation calculation for helix visualization
+
+            const rotation = (xPos * 360 / 70) % 360; // Tighter twist
+
+            basePair.style.setProperty('--bp-rot', `${rotation}deg`);
+
+
+
+             // Hide base pairs in the target zone, as they are replaced by the unwound strands
+
+            if (xPos >= targetStart && xPos <= targetEnd) {
+
+                basePair.style.opacity = 0;
+
+            }
+
+
+
+            dnaContainer.appendChild(basePair);
+
+        }
+
+
+
+        // --- 3. Generate CRISPR Complex Structure ---
+
+        // Helper function to create the subunits
+
+        function createSubunit(x, y, size, className) {
+
+            const subunit = document.createElement('div');
+
+            subunit.classList.add('subunit', className);
+
+            subunit.style.left = `${x}px`;
+
+            subunit.style.top = `${y}px`;
+
+            subunit.style.width = `${size}px`;
+
+            subunit.style.height = `${size}px`;
+
+            cas9Body.appendChild(subunit);
+
+        }
+
+
+
+        // Manually arranging subunits to mimic the structure in the image
+
+        // Yellow Lobe
+
+        createSubunit(10, 5, 40, 'yellow');
+
+        createSubunit(40, 0, 30, 'yellow');
+
+        createSubunit(5, 30, 25, 'yellow');
+
+
+
+        // Red Lobe
+
+        createSubunit(50, 35, 45, 'red');
+
+        createSubunit(70, 25, 30, 'red');
+
+        createSubunit(60, 60, 25, 'red');
+
+
+
+        // Green Lobe
+
+        createSubunit(30, 45, 30, 'green');
+
+        createSubunit(65, 5, 20, 'green');
+
+
+
+        // --- 4. Animation Sequence Trigger ---
+
+        // The visualization relies on synchronizing the CSS animation (scanning) with the JS trigger (acquisition).
+
+        // Animation duration: 15s.
+
+        // Acquisition starts at: 50% (defined by --acquisition-start-time).
+
+        // 15s * 0.50 = 7.5s.
+
+
+
+        const acquisitionTriggerTime = 7500; // milliseconds
+
+
+
+        setTimeout(() => {
+
+            // Trigger the unwinding and R-loop formation by adding the 'active' class
+
+            targetSite.classList.add('active');
+
+        }, acquisitionTriggerTime);
+
+
+
+    </script>
+
+</body>
+
+</html>
