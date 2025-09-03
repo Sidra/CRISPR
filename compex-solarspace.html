@@ -1,0 +1,447 @@
+// write complex animation html code for solar system, meteorite, space, and nuclear reactor . Use Three js , d3 and others where appropriate.
+
+  
+// This is a complex request that requires integrating the strengths of Three.js for immersive 3D rendering (solar system, space, meteorites) and D3.js for dynamic, data-driven visualization (nuclear reactor schematic).
+
+// Below is a comprehensive, self-contained HTML file that combines these elements into a complex animation. The 3D scene is interactive (drag to rotate, scroll to zoom), and the nuclear reactor overlay features a dynamic simulation.
+
+// How to Run the Code
+// Save the following code block as an HTML file (e.g., CosmicReactor.html).
+
+// Open the file in a modern web browser.
+
+
+  
+
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Complex Animation: Solar System, Meteorites, and Nuclear Reactor</title>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            background-color: #000;
+            color: #0ff;
+            font-family: 'Consolas', 'Courier New', monospace;
+        }
+        #threejs-container {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+        }
+        #reactor-hud {
+            position: absolute;
+            bottom: 20px;
+            right: 20px;
+            width: 450px;
+            height: 300px;
+            background-color: rgba(10, 10, 30, 0.85);
+            border: 1px solid #0ff;
+            padding: 15px;
+            border-radius: 5px;
+            box-shadow: 0 0 20px rgba(0, 255, 255, 0.5);
+        }
+        #reactor-title {
+            text-align: center;
+            font-size: 18px;
+            margin-bottom: 10px;
+            text-shadow: 0 0 5px #0ff;
+            text-transform: uppercase;
+        }
+        #info {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            color: #aaa;
+            font-size: 14px;
+        }
+    </style>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://unpkg.com/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
+</head>
+<body>
+
+<div id="threejs-container"></div>
+<div id="info">Drag to rotate, Scroll to zoom</div>
+<div id="reactor-hud">
+    <div id="reactor-title">Deep Space Fission Reactor Status</div>
+    <div id="d3-container"></div>
+</div>
+
+<script>
+    // ====================================================================
+    // THREE.js Implementation (Solar System, Space, Meteorites)
+    // ====================================================================
+
+    let scene, camera, renderer, controls;
+    let sun;
+    let pivots = [];
+    let meteorites = [];
+
+    function initThreeJS() {
+        // Scene Setup
+        scene = new THREE.Scene();
+        // Add subtle fog for depth
+        scene.fog = new THREE.Fog(0x000000, 500, 2000);
+
+        camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 3000);
+        camera.position.set(0, 100, 250);
+
+        renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        document.getElementById('threejs-container').appendChild(renderer.domElement);
+
+        // Controls (Interactive Camera)
+        controls = new THREE.OrbitControls(camera, renderer.domElement);
+        controls.enableDamping = true;
+        controls.dampingFactor = 0.05;
+
+        // Lighting
+        const ambientLight = new THREE.AmbientLight(0x222233);
+        scene.add(ambientLight);
+        const sunLight = new THREE.PointLight(0xffffff, 1.5, 1500);
+        scene.add(sunLight); // Light originates from the center (Sun)
+
+        // Create 3D elements
+        createSolarSystem();
+        createStarField();
+        createMeteoriteBelt();
+
+        // Handle window resize
+        window.addEventListener('resize', onWindowResize, false);
+    }
+
+    function createSolarSystem() {
+        // Sun
+        const sunGeometry = new THREE.SphereGeometry(20, 32, 32);
+        // MeshBasicMaterial ensures it looks like a light source
+        const sunMaterial = new THREE.MeshBasicMaterial({ color: 0xffddaa });
+        sun = new THREE.Mesh(sunGeometry, sunMaterial);
+        scene.add(sun);
+
+        // Planets
+        // Planet(size, color, distance, speed, hasMoon)
+        createPlanet(3, 0x999999, 50, 0.008);
+        createPlanet(6, 0xffa500, 80, 0.006);
+        createPlanet(7, 0x1e90ff, 120, 0.005, true); // Earth-like with moon
+        createPlanet(4, 0xff4500, 160, 0.004);
+        createPlanet(12, 0xd2b48c, 250, 0.002);
+    }
+
+    function createPlanet(size, color, distance, speed, hasMoon = false) {
+        // Pivot allows rotation around the sun
+        const pivot = new THREE.Object3D();
+        scene.add(pivot);
+
+        const geometry = new THREE.SphereGeometry(size, 24, 24);
+        const material = new THREE.MeshStandardMaterial({ color: color, roughness: 0.8, metalness: 0.0 });
+        const planet = new THREE.Mesh(geometry, material);
+        planet.position.x = distance;
+        pivot.add(planet);
+
+        pivots.push({ pivot, speed, mesh: planet });
+
+        // Orbit visualization
+        const orbitGeometry = new THREE.TorusGeometry(distance, 0.1, 16, 100);
+        const orbitMaterial = new THREE.MeshBasicMaterial({ color: 0x333333 });
+        const orbit = new THREE.Mesh(orbitGeometry, orbitMaterial);
+        orbit.rotation.x = Math.PI / 2;
+        scene.add(orbit);
+
+        if (hasMoon) {
+            const moonPivot = new THREE.Object3D();
+            planet.add(moonPivot); // Pivot around the planet
+            pivots.push({ pivot: moonPivot, speed: 0.03, mesh: null });
+
+            const moonGeometry = new THREE.SphereGeometry(size / 4, 16, 16);
+            const moonMaterial = new THREE.MeshStandardMaterial({ color: 0xcccccc });
+            const moon = new THREE.Mesh(moonGeometry, moonMaterial);
+            moon.position.x = size * 2;
+            moonPivot.add(moon);
+        }
+    }
+
+    function createStarField() {
+        const geometry = new THREE.BufferGeometry();
+        const vertices = [];
+        for (let i = 0; i < 10000; i++) {
+            vertices.push(
+                THREE.MathUtils.randFloatSpread(3000),
+                THREE.MathUtils.randFloatSpread(3000),
+                THREE.MathUtils.randFloatSpread(3000)
+            );
+        }
+        geometry.setAttribute('position', new THREE.Float32BufferAttribute(vertices, 3));
+        const material = new THREE.PointsMaterial({ color: 0xffffff, size: 0.7 });
+        const starField = new THREE.Points(geometry, material);
+        scene.add(starField);
+    }
+
+    // Creates a field of meteorites that fly through the scene
+    function createMeteoriteBelt() {
+        const meteoriteMaterial = new THREE.MeshStandardMaterial({ color: 0x8B4513, roughness: 0.9 });
+
+        for (let i = 0; i < 150; i++) {
+            const size = Math.random() * 2 + 0.5;
+            const meteoriteGeometry = new THREE.DodecahedronGeometry(size, 0);
+            const meteorite = new THREE.Mesh(meteoriteGeometry, meteoriteMaterial);
+            resetMeteorite(meteorite, true);
+            scene.add(meteorite);
+            meteorites.push(meteorite);
+        }
+    }
+
+    function resetMeteorite(meteorite, initial = false) {
+        const spread = 1000;
+        const depth = initial ? THREE.MathUtils.randFloat(500, 2000) : 2000;
+        
+        // Position randomly far away in the Z axis
+        meteorite.position.set(
+            THREE.MathUtils.randFloatSpread(spread),
+            THREE.MathUtils.randFloatSpread(spread),
+            -depth
+        );
+
+        // Velocity towards the camera/center area
+        meteorite.velocity = new THREE.Vector3(
+            THREE.MathUtils.randFloatSpread(0.5),
+            THREE.MathUtils.randFloatSpread(0.5),
+            THREE.MathUtils.randFloat(1, 3) // Speed towards the camera
+        );
+        
+        meteorite.rotationSpeed = new THREE.Vector3(
+            Math.random() * 0.03,
+            Math.random() * 0.03,
+            Math.random() * 0.03
+        );
+    }
+
+    function animateThreeJS() {
+        controls.update(); // Update camera controls with damping
+
+        // Planet Orbits and Rotations
+        pivots.forEach(item => {
+            item.pivot.rotation.y += item.speed;
+            if (item.mesh) {
+                item.mesh.rotation.y += 0.01; // Self rotation
+            }
+        });
+
+        // Sun rotation
+        sun.rotation.y += 0.001;
+
+        // Meteorite movement
+        meteorites.forEach(m => {
+            m.position.add(m.velocity);
+            m.rotation.x += m.rotationSpeed.x;
+            m.rotation.y += m.rotationSpeed.y;
+            m.rotation.z += m.rotationSpeed.z;
+
+            // Reset if they pass the camera
+            if (m.position.z > camera.position.z + 100) {
+                resetMeteorite(m);
+            }
+        });
+
+        renderer.render(scene, camera);
+    }
+
+    function onWindowResize() {
+        camera.aspect = window.innerWidth / window.innerHeight;
+        camera.updateProjectionMatrix();
+        renderer.setSize(window.innerWidth, window.innerHeight);
+    }
+
+    // ====================================================================
+    // D3.js Implementation (Nuclear Reactor Schematic HUD)
+    // ====================================================================
+
+    let svg, reactorCoreGlow, controlRods, coolantPipes;
+    const reactorState = {
+        power: 0.5,
+        targetPower: 0.7,
+        temperature: 300, // Celsius
+    };
+    const rodData = d3.range(5).map(i => ({ id: i, depth: 0.5 })); // depth 0 (retracted) to 1 (inserted)
+
+    function initD3() {
+        const width = 450;
+        const height = 270;
+
+        svg = d3.select("#d3-container")
+            .append("svg")
+            .attr("width", width)
+            .attr("height", height);
+
+        // Define Glow filter
+        const defs = svg.append("defs");
+        const filter = defs.append("filter").attr("id", "glow");
+        filter.append("feGaussianBlur").attr("stdDeviation", "5").attr("result", "coloredBlur");
+        const feMerge = filter.append("feMerge");
+        feMerge.append("feMergeNode").attr("in", "coloredBlur");
+        feMerge.append("feMergeNode").attr("in", "SourceGraphic");
+
+        // Reactor Vessel Outline
+        const vesselX = 200;
+        const vesselY = 50;
+        const vesselWidth = 120;
+        const vesselHeight = 180;
+
+        svg.append("rect")
+            .attr("x", vesselX)
+            .attr("y", vesselY)
+            .attr("width", vesselWidth)
+            .attr("height", vesselHeight)
+            .attr("rx", 15)
+            .attr("fill", "#333")
+            .attr("stroke", "#0ff")
+            .attr("stroke-width", 2);
+
+        // Reactor Core Dynamic Glow
+        reactorCoreGlow = svg.append("rect")
+            .attr("x", vesselX + 10)
+            .attr("y", vesselY + 30)
+            .attr("width", vesselWidth - 20)
+            .attr("height", vesselHeight - 50)
+            .style("filter", "url(#glow)");
+
+        // Control Rods
+        controlRods = svg.selectAll(".control-rod")
+            .data(rodData)
+            .enter()
+            .append("rect")
+            .attr("class", "control-rod")
+            .attr("x", d => vesselX + 15 + d.id * 20)
+            .attr("width", 10)
+            .attr("fill", "#aaa");
+
+        // Coolant System (Pipes)
+        coolantPipes = svg.append("g");
+
+        // Inlet (Blue)
+        coolantPipes.append("path")
+            .attr("d", `M 100 ${vesselY + 140} L ${vesselX} ${vesselY + 140}`)
+            .attr("stroke", "#00f")
+            .attr("stroke-width", 10)
+            .attr("fill", "none")
+            .attr("stroke-dasharray", "15,15");
+
+        // Outlet (Red)
+        coolantPipes.append("path")
+            .attr("d", `M ${vesselX + vesselWidth} ${vesselY + 50} L ${width - 50} ${vesselY + 50}`)
+            .attr("stroke", "#f00")
+            .attr("stroke-width", 10)
+            .attr("fill", "none")
+            .attr("stroke-dasharray", "15,15");
+
+        // Status Text Displays
+        createStatusText("power-text", 20, 30);
+        createStatusText("temp-text", 20, 55);
+        createStatusText("target-text", 20, 80);
+    }
+
+    function createStatusText(id, x, y) {
+        svg.append("text")
+            .attr("id", id)
+            .attr("x", x)
+            .attr("y", y)
+            .attr("fill", "#0ff")
+            .style("font-size", "14px");
+    }
+
+    function updateReactorSimulation() {
+        // 1. Simulate external demand changes
+        if (Math.random() < 0.005) {
+            // Randomly change the target power demand every few seconds
+            reactorState.targetPower = Math.random() * 0.8 + 0.2; // Range 20% to 100%
+        }
+
+        // 2. Calculate error (difference between target and current power)
+        const error = reactorState.targetPower - reactorState.power;
+
+        // 3. Control System Response (Simplified PID-like behavior)
+        // Adjust control rods based on error. 
+        // If error is positive (need more power), retract rods (decrease depth).
+        const rodAdjustment = error * 0.05 + (Math.random() - 0.5) * 0.005; // Control action + noise
+
+        rodData.forEach(d => {
+            d.depth -= rodAdjustment;
+            d.depth = Math.max(0.05, Math.min(0.95, d.depth)); // Clamp between 5% and 95% insertion
+        });
+
+        // 4. Calculate Reactivity and Power Change
+        const avgDepth = d3.mean(rodData, d => d.depth);
+        // Power increases when rods are retracted (low avgDepth)
+        const reactivity = (0.5 - avgDepth) * 0.1; 
+
+        reactorState.power += reactivity;
+        // Add natural stability and noise
+        reactorState.power = reactorState.power * 0.99 + (Math.random() - 0.5) * 0.005;
+        reactorState.power = Math.max(0, Math.min(1, reactorState.power));
+
+        // 5. Update Temperature (follows power level)
+        reactorState.temperature = 300 + reactorState.power * 700; // Range 300C to 1000C
+    }
+
+    function animateD3() {
+        updateReactorSimulation();
+
+        // 1. Update Core Glow
+        // Interpolate color based on temperature (Cyan -> Yellow -> Red)
+        const colorInterpolator = d3.interpolateRgbBasis(["cyan", "yellow", "red"]);
+        
+        // Add subtle pulsation effect
+        const pulsation = Math.sin(d3.now() / (150 / reactorState.power)) * 2;
+
+        reactorCoreGlow
+            .attr("fill", colorInterpolator(reactorState.power))
+            .attr("width", 100 + pulsation)
+            .attr("x", 210 - pulsation / 2);
+
+        // 2. Update Control Rods
+        const maxRodInsertion = 160;
+        controlRods
+            .data(rodData)
+            // Use transition for smoother movement
+            .transition().duration(50)
+            .attr("y", d => 50) // Start at the top of the vessel
+            .attr("height", d => d.depth * maxRodInsertion);
+
+        // 3. Animate Coolant Flow (moving dashes)
+        // Flow speed increases with power output
+        const flowSpeed = 10 + reactorState.power * 80;
+        coolantPipes.selectAll("path")
+            .attr("stroke-dashoffset", function() {
+                // Modulo 30 because dasharray is "15,15"
+                return -(d3.now() * flowSpeed / 100) % 30;
+            });
+
+        // 4. Update Text
+        d3.select("#power-text").text(`Power Output: ${(reactorState.power * 100).toFixed(2)} %`);
+        d3.select("#temp-text").text(`Core Temp:    ${reactorState.temperature.toFixed(1)} °C`);
+        d3.select("#target-text").text(`Demand Target: ${(reactorState.targetPower * 100).toFixed(0)} %`);
+    }
+
+    // ====================================================================
+    // Main Animation Loop
+    // ====================================================================
+
+    function mainLoop() {
+        requestAnimationFrame(mainLoop);
+        animateThreeJS();
+        animateD3();
+    }
+
+    // Initialize everything
+    initThreeJS();
+    initD3();
+    mainLoop();
+
+</script>
+</body>
+</html>
